@@ -42,7 +42,7 @@ $SUDO pacman -Syu --noconfirm \
 	base-devel git curl wget cmake clang ninja patchelf zsync \
 	xorg-server-xvfb pciutils hwdata dbus \
 	qt6-base qt6-declarative qt6-webengine qt6-svg qt6-tools qt6-translations \
-	libzip libpng libpulse alsa-lib pipewire jack2 sndio sdl3 \
+	libzip libpng libpulse alsa-lib pipewire jack2 sndio \
 	libx11 libxi libxext libxfixes libxcursor libxrandr libxss libxtst \
 	libxcb libxkbcommon libxkbcommon-x11 xcb-util-wm \
 	mesa vulkan-headers vulkan-validation-layers libdrm libgbm \
@@ -61,9 +61,11 @@ fi
 if [ ! -d tapk-extract ]; then
 	git clone https://gitlab.com/javiercplus/tapk-extract.git tapk-extract
 fi
-if [ ! -d linux-bin ]; then
+if [ ! -d linux-bin ] && [ ! -d mcpe-nx/mcpelauncher-linux-bin ]; then
 	git clone https://github.com/minecraft-linux/mcpelauncher-linux-bin.git linux-bin
 fi
+# El engine trae sdl3/ y mcpelauncher-linux-bin/ vendoreados y no usa
+# submodulos: un clone plano basta.
 if [ "$ARCH" = "x86_64" ] && [ ! -d 32bitmcpe ]; then
 	wget --retry-connrefused --tries=30 \
 		https://huggingface.co/datasets/ccoffee20/PEPE/resolve/main/mcpe32bit.tar \
@@ -79,6 +81,7 @@ cmake -S mcpe-nx -B mcpe-nx/build -G Ninja \
 	-DBUILD_WEBVIEW=OFF \
 	-DGAMEWINDOW_SYSTEM=SDL3 \
 	-DBUILD_UI=OFF \
+	-DENABLE_DEV_PATHS=OFF \
 	-Wno-dev
 cmake --build mcpe-nx/build --parallel "$(nproc)"
 
@@ -117,7 +120,11 @@ $SUDO install -Dm644 resources/shortcuts/com.trench.trinity.launcher.desktop \
 $SUDO install -Dm644 resources/branding/com.trench.trinity.launcher.svg \
 	/usr/share/icons/hicolor/scalable/apps/com.trench.trinity.launcher.svg
 $SUDO mkdir -p /usr/share/mcpelauncher
-$SUDO cp -r linux-bin/. /usr/share/mcpelauncher/
+if [ -d mcpe-nx/mcpelauncher-linux-bin ]; then
+	$SUDO cp -r mcpe-nx/mcpelauncher-linux-bin/. /usr/share/mcpelauncher/
+else
+	$SUDO cp -r linux-bin/. /usr/share/mcpelauncher/
+fi
 
 echo "=== 6/7 Deploy con quick-sharun (jamas copiar .so a mano) ==="
 wget --retry-connrefused --tries=30 "$SHARUN_URL" -O ./quick-sharun
