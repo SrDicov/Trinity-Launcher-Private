@@ -22,17 +22,14 @@ jobs:
       - name: Clonar repositorio Trinity
         uses: actions/checkout@v4
 
-      - name: Clonar mcpe-nx (engine privado)
-        env:
-          MCPE_NX: ${{ secrets.MCPE_NX }}
-        run: |
-          if [ -n "$MCPE_NX" ]; then
-            git clone "$MCPE_NX" mcpe-nx > /dev/null 2>&1
-          fi
+      - name: Clonar mcpe-next (engine privado)
+        uses: actions/checkout@v4
+        with:
+          repository: 'SrDicov/mcpe-next'
+          token: ${{ secrets.CLONE_PAT }}
+          path: 'mcpe-nx'
 
       - name: Construir AppImage AnyLinux
-        env:
-          MCPE_NX: ${{ secrets.MCPE_NX }}
         run: |
           sleep 10 # el runner a veces monta el checkout del commit anterior
           sh ./trinity-appimage.sh

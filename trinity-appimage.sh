@@ -56,7 +56,11 @@ chmod +x ./get-debloated-pkgs.sh
 
 echo "=== 3/7 Fuentes del engine + datos ==="
 if [ ! -d mcpe-nx ]; then
-	git clone "$MCPE_URL" mcpe-nx
+	# Silenciado a proposito: MCPE_URL puede llevar credenciales y este
+	# script corre con xtrace (set -x).
+	set +x
+	git clone "$MCPE_URL" mcpe-nx > /dev/null 2>&1
+	set -x
 fi
 if [ ! -d tapk-extract ]; then
 	git clone https://gitlab.com/javiercplus/tapk-extract.git tapk-extract
