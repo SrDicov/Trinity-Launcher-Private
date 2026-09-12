@@ -1,0 +1,79 @@
+From 4401ca6681c9e9169be09fb451a70342393be540 Mon Sep 17 00:00:00 2001
+From: PlaGaPlusDev <plagaplusdev@outlook.com>
+Date: Sat, 20 Jun 2026 15:20:41 -0400
+Subject: [PATCH] fix: remove WebView JNI guard, add dlsym fallback, search
+ msa-daemon in app dir
+
+---
+ src/jni/jni_support.cpp  | 4 ----
+ src/jni/webview.cpp      | 4 ++--
+ src/main.cpp             | 5 ++++-
+ src/xbox_live_helper.cpp | 4 +---
+ 4 files changed, 7 insertions(+), 10 deletions(-)
+
+diff --git a/src/jni/jni_support.cpp b/src/jni/jni_support.cpp
+index c71fd70..2167d08 100644
+--- a/src/jni/jni_support.cpp
++++ b/src/jni/jni_support.cpp
+@@ -141,10 +141,6 @@ void JniSupport::registerMinecraftNatives(void* (*symResolver)(const char*)) {
+     registerNatives(JellyBeanDeviceManager::getDescriptor(), {{"onInputDeviceAddedNative", "(I)V"}, {"onInputDeviceRemovedNative", "(I)V"}}, symResolver);
+     registerNatives(HttpClientRequest::getDescriptor(), {{"OnRequestCompleted", "(JLcom/xbox/httpclient/HttpClientResponse;)V"}, {"OnRequestFailed", "(JLjava/lang/String;)V"}, {"OnRequestFailed", "(JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Z)V"}}, symResolver);
+     registerNatives(HttpClientWebSocket::getDescriptor(), {{"onMessage", "(Ljava/lang/String;)V"}, {"onBinaryMessage", "(Ljava/nio/ByteBuffer;)V"}, {"onOpen", "()V"}, {"onClose", "(I)V"}, {"onFailure", "()V"}}, symResolver);
+-    registerNatives(WebView::getDescriptor(), {
+-                                                  {"urlOperationSucceeded", "(JLjava/lang/String;ZLjava/lang/String;)V"},
+-                                              },
+-                    symResolver);
+     registerNatives(BrowserLaunchActivity::getDescriptor(), {
+                                                                 {"urlOperationSucceeded", "(JLjava/lang/String;ZLjava/lang/String;)V"},
+                                                             },
+diff --git a/src/jni/webview.cpp b/src/jni/webview.cpp
+index d53a42f..f1b3006 100644
+--- a/src/jni/webview.cpp
++++ b/src/jni/webview.cpp
+@@ -4,9 +4,9 @@
+ void WebView::showUrl(FakeJni::JLong l, std::shared_ptr<Context> ctx, std::shared_ptr<FakeJni::JString> starturl, std::shared_ptr<FakeJni::JString> endurl, FakeJni::JInt i, FakeJni::JBoolean z, FakeJni::JLong j2) {
+     auto webview = XalWebViewFactory::createXalWebView();
+     auto finalendurl = webview->show(starturl->asStdString(), endurl->asStdString());
+-    auto method = WebView::getDescriptor()->getMethod("(JLjava/lang/String;ZLjava/lang/String;)V", "urlOperationSucceeded");
++    auto method = BrowserLaunchActivity::getDescriptor()->getMethod("(JLjava/lang/String;ZLjava/lang/String;)V", "urlOperationSucceeded");
+     FakeJni::LocalFrame frame;
+-    method->invoke(frame.getJniEnv(), WebView::getDescriptor().get(), l, frame.getJniEnv().createLocalReference(std::make_shared<FakeJni::JString>(finalendurl)), false, frame.getJniEnv().createLocalReference(std::make_shared<FakeJni::JString>("webkit-noDefault::0::none")));
++    method->invoke(frame.getJniEnv(), BrowserLaunchActivity::getDescriptor().get(), l, frame.getJniEnv().createLocalReference(std::make_shared<FakeJni::JString>(finalendurl)), false, frame.getJniEnv().createLocalReference(std::make_shared<FakeJni::JString>("webkit-noDefault::0::none")));
+ }
+ 
+ void BrowserLaunchActivity::showUrl(FakeJni::JLong l, std::shared_ptr<Context> ctx, std::shared_ptr<FakeJni::JString> starturl, std::shared_ptr<FakeJni::JString> endurl, FakeJni::JInt i, std::shared_ptr<FakeJni::JArray<FakeJni::JString>> _a, std::shared_ptr<FakeJni::JArray<FakeJni::JString>> _b, FakeJni::JBoolean z, FakeJni::JLong j2) {
+diff --git a/src/main.cpp b/src/main.cpp
+index 35cd788..89d159b 100644
+--- a/src/main.cpp
++++ b/src/main.cpp
+@@ -619,7 +619,10 @@ Hardware	: Qualcomm Technologies, Inc MSM8998
+ 
+     FakeLooper::setJniSupport(&support);
+     support.registerMinecraftNatives(+[](const char* sym) {
+-        return linker::dlsym(handle, sym);
++        void* ret = linker::dlsym(handle, sym);
++        if(!ret)
++            ret = dlsym(RTLD_DEFAULT, sym);
++        return ret;
+     });
+     std::thread startThread([&support]() {
+         ThreadMover::storeStartThreadId();
+diff --git a/src/xbox_live_helper.cpp b/src/xbox_live_helper.cpp
+index 06ddc20..c848ae3 100644
+--- a/src/xbox_live_helper.cpp
++++ b/src/xbox_live_helper.cpp
+@@ -15,10 +15,8 @@ std::string const XboxLiveHelper::MSA_COBRAND_ID = "90023";
+ 
+ std::string XboxLiveHelper::findMsa() {
+     std::string path;
+-#ifdef MSA_DAEMON_PATH
+-    if(EnvPathUtil::findInPath("msa-daemon", path, MSA_DAEMON_PATH, EnvPathUtil::getAppDir().c_str()))
++    if(EnvPathUtil::findInPath("msa-daemon", path, "", EnvPathUtil::getAppDir().c_str()))
+         return path;
+-#endif
+     if(EnvPathUtil::findInPath("msa-daemon", path))
+         return path;
+     return std::string();
+-- 
+2.54.0
+

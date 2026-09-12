@@ -1,0 +1,166 @@
+diff --git a/src/MinimalInviteRtaClient.cpp b/src/MinimalInviteRtaClient.cpp
+index 35b738e..9c3897f 100644
+--- a/src/MinimalInviteRtaClient.cpp
++++ b/src/MinimalInviteRtaClient.cpp
+@@ -759,6 +759,11 @@ HRESULT MinimalInviteRtaClient::Connect()
+         }
+ 
+         HCWebSocketSetHeader(impl.websocket, "Authorization", auth->token);
++        if (auth->signature && auth->signature[0] != '\0')
++        {
++            HCWebSocketSetHeader(impl.websocket, "Signature", auth->signature);
++        }
++        HCWebSocketSetHeader(impl.websocket, "x-xbl-contract-version", "1");
+         HCWebSocketSetHeader(impl.websocket, "Accept-Language", impl.locale.c_str());
+         HCWebSocketSetHeader(impl.websocket, "User-Agent", impl.userAgent.c_str());
+ 
+@@ -815,13 +820,16 @@ HRESULT MinimalInviteRtaClient::Disconnect()
+ 
+ HRESULT MinimalInviteRtaClient::RegisterFcmToken(const char* fcmToken)
+ {
+-    (void)fcmToken;
+-
+     if (!m_impl->user || m_impl->titleId == 0)
+     {
+         return E_INVALIDARG;
+     }
+ 
++    if (fcmToken == nullptr || fcmToken[0] == '\0')
++    {
++        return S_OK;
++    }
++
+     const std::string resourceUri = ResourceUri();
+ 
+     constexpr const char* url = "https://notify.xboxlive.com/system/notifications/endpoints";
+@@ -864,6 +872,7 @@ HRESULT MinimalInviteRtaClient::RegisterFcmToken(const char* fcmToken)
+         {
+             { "Accept", "application/json" },
+             { "Authorization", signedRequest.token },
++            { "Signature", signedRequest.signature },
+             { "Content-Type", "application/json; charset=utf-8" },
+             { "User-Agent", "libHttpClient/1.0.0.0" },
+             { "X-ReportErrorAsSuccess", "true" }
+@@ -1142,58 +1151,66 @@ static HRESULT mockXalTryAddDefaultUserSilentlyResult(XAsyncBlock* async, XalUse
+             std::string installation = "/data/data/com.mojang.minecraftpe/installation.json";
+             long android_Id = 0;
+             long security_token = 0;
+-            std::ifstream in(installation);
+-            if (in.is_open()) {
+-                rapidjson::Document document;
+-                std::stringstream ss;
+-                ss << in.rdbuf();
+-                document.Parse(ss.str().data());
+-                if (document.IsObject() && document.HasMember("fid") && document.HasMember("refToken") && document["fid"].IsString() && document["refToken"].IsString()) {
+-                    fid = document["fid"].GetString();
+-                    refToken = document["refToken"].GetString();
+-                    android_Id = std::stol(document["android_id"].GetString());
+-                    security_token = std::stol(document["security_token"].GetString());
+-                    GetAuthToken(fid, refToken, tkn);
+-                }
+-            } else {
+-                playapi::device_info device;
+-                playapi::checkin_api checkin(device);
+-                auto checkinResult = checkin.perform_anonymous_checkin()->call();
+-                android_Id = checkinResult.android_id;
+-                security_token = checkinResult.security_token;
+ 
+-                CreateInstallationToken(fid, tkn, refToken);
++            MinimalInviteRtaClient::Config conf;
++            conf.user = user;
++            XalUserGetId(conf.user, &conf.xuid);
++            conf.titleId = 0x67b57dac;
+ 
+-                rapidjson::Document document;
+-                document.SetObject();
+-                auto& allocator = document.GetAllocator();
++            static auto client = MinimalInviteRtaClient::Create(conf);
++            client->Connect();
+ 
+-                document.AddMember("fid", rapidjson::Value(fid.c_str(), allocator), allocator);
+-                document.AddMember("refToken", rapidjson::Value(refToken.c_str(), allocator), allocator);
++            try
++            {
++                std::ifstream in(installation);
++                if (in.is_open()) {
++                    rapidjson::Document document;
++                    std::stringstream ss;
++                    ss << in.rdbuf();
++                    document.Parse(ss.str().data());
++                    if (document.IsObject() && document.HasMember("fid") && document.HasMember("refToken") && document["fid"].IsString() && document["refToken"].IsString()) {
++                        fid = document["fid"].GetString();
++                        refToken = document["refToken"].GetString();
++                        android_Id = std::stol(document["android_id"].GetString());
++                        security_token = std::stol(document["security_token"].GetString());
++                        GetAuthToken(fid, refToken, tkn);
++                    }
++                } else {
++                    playapi::device_info device;
++                    playapi::checkin_api checkin(device);
++                    auto checkinResult = checkin.perform_anonymous_checkin()->call();
++                    android_Id = checkinResult.android_id;
++                    security_token = checkinResult.security_token;
+ 
+-                RegisterDevice(tkn, android_Id, security_token, fid, tkn);
++                    CreateInstallationToken(fid, tkn, refToken);
+ 
+-                document.AddMember("android_id", rapidjson::Value(std::to_string(android_Id).c_str(), allocator), allocator);
+-                document.AddMember("security_token", rapidjson::Value(std::to_string(security_token).c_str(), allocator), allocator);
++                    rapidjson::Document document;
++                    document.SetObject();
++                    auto& allocator = document.GetAllocator();
+ 
+-                ::rapidjson::StringBuffer buffer;
+-                ::rapidjson::Writer<::rapidjson::StringBuffer> writer(buffer);
+-                document.Accept(writer);
++                    document.AddMember("fid", rapidjson::Value(fid.c_str(), allocator), allocator);
++                    document.AddMember("refToken", rapidjson::Value(refToken.c_str(), allocator), allocator);
+ 
+-                std::ofstream out(installation);
+-                out << buffer.GetString();
+-                out.close();
+-            }
++                    RegisterDevice(tkn, android_Id, security_token, fid, tkn);
+ 
+-            // RegisterDevice(tkn);
+-            MinimalInviteRtaClient::Config conf;
+-            conf.user = user;
+-            XalUserGetId(conf.user, &conf.xuid);
+-            conf.titleId = 0x67b57dac;
++                    document.AddMember("android_id", rapidjson::Value(std::to_string(android_Id).c_str(), allocator), allocator);
++                    document.AddMember("security_token", rapidjson::Value(std::to_string(security_token).c_str(), allocator), allocator);
+ 
+-            static auto client = MinimalInviteRtaClient::Create(conf);
+-            client->RegisterFcmToken(tkn.data());
+-            ListenMTalk(android_Id, security_token);
++                    ::rapidjson::StringBuffer buffer;
++                    ::rapidjson::Writer<::rapidjson::StringBuffer> writer(buffer);
++                    document.Accept(writer);
++
++                    std::ofstream out(installation);
++                    out << buffer.GetString();
++                    out.close();
++                }
++
++                client->RegisterFcmToken(tkn.data());
++                ListenMTalk(android_Id, security_token);
++            }
++            catch (...)
++            {
++            }
+         }).detach();
+     }
+     return hr;
+@@ -1329,8 +1346,10 @@ HRESULT RegisterDevice(std::string& tkn, long androidId, long securityToken, std
+     const char *responseString;
+     HRET(HCHttpCallResponseGetResponseString(handle, &responseString));
+     
+-    if(statusCode == 200) {
+-        tkn = responseString + sizeof("TOKEN");
++    if(statusCode == 200 && responseString != nullptr) {
++        std::string resp(responseString);
++        std::string::size_type eq = resp.find('=');
++        tkn = (eq != std::string::npos) ? resp.substr(eq + 1) : resp;
+     }
+     return S_OK;
+ }
