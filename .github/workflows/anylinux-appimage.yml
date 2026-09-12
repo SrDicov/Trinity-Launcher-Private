@@ -22,13 +22,8 @@ jobs:
       - name: Clonar repositorio Trinity
         uses: actions/checkout@v4
 
-      - name: Clonar mcpe-next (engine privado)
-        uses: actions/checkout@v4
-        with:
-          repository: 'SrDicov/mcpe-next'
-          token: ${{ secrets.CLONE_PAT }}
-          path: 'mcpe-nx'
-
+      # El engine viaja vendoreado en mcpe-nx/ (subtree de SrDicov/mcpe-next):
+      # cero credenciales extra en CI.
       - name: Construir AppImage AnyLinux
         run: |
           sleep 10 # el runner a veces monta el checkout del commit anterior
