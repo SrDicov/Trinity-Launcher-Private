@@ -71,9 +71,17 @@ fi
 # El engine trae sdl3/ y mcpelauncher-linux-bin/ vendoreados y no usa
 # submodulos: un clone plano basta.
 if [ "$ARCH" = "x86_64" ] && [ ! -d 32bitmcpe ]; then
-	wget --retry-connrefused --tries=30 \
-		https://huggingface.co/datasets/ccoffee20/PEPE/resolve/main/mcpe32bit.tar \
-		-O mcpe32bit.tar
+	# HuggingFace limita por IP (429): reintentos con espera
+	for i in 1 2 3 4 5 6 7 8 9 10; do
+		if wget --retry-connrefused --tries=5 \
+			https://huggingface.co/datasets/ccoffee20/PEPE/resolve/main/mcpe32bit.tar \
+			-O mcpe32bit.tar; then
+			break
+		fi
+		echo "Descarga 429/fallida (intento $i/10), esperando 60s..."
+		rm -f mcpe32bit.tar
+		sleep 60
+	done
 	tar -xf mcpe32bit.tar
 fi
 
