@@ -171,6 +171,14 @@ fi
 # Vars de runtime que el AppRun/sharun expande al lanzar (sin expandir aqui)
 echo 'MCPELAUNCHER_DATA_DIR=${SHARUN_DIR}/share/mcpelauncher' >> AppDir/.env
 echo 'PCI_IDS=${SHARUN_DIR}/share/hwdata/pci.ids' >> AppDir/.env
+# Aislamiento anti-crash en distros con userland viejo (Void/musl, etc):
+# - fusion: el host puede traer QT_QPA_PLATFORMTHEME=gtk3 y el plugin
+#   libqgtk3 empaquetado contra un GTK3 ajeno al del host -> mezcla y SIGSEGV
+# - GIO_MODULE_DIR/GIO_USE_VFS: impide que GIO sondee los modulos gio/gvfs
+#   del host (incompatibles con el glib empaquetado -> SIGSEGV)
+echo 'QT_QPA_PLATFORMTHEME=fusion' >> AppDir/.env
+echo 'GIO_MODULE_DIR=${SHARUN_DIR}/lib/gio/modules' >> AppDir/.env
+echo 'GIO_USE_VFS=local' >> AppDir/.env
 
 if [ "$ARCH" = "x86_64" ] && [ -f 32bitmcpe/bin/mcpelauncher-client86 ]; then
 	# El helper de 32-bit no puede mezclarse en lib/ (colisionaria con los
