@@ -45,7 +45,7 @@ $SUDO pacman -Syu --noconfirm \
 	libzip libpng libpulse alsa-lib pipewire jack2 sndio \
 	libx11 libxi libxext libxfixes libxcursor libxrandr libxss libxtst \
 	libxcb libxkbcommon libxkbcommon-x11 xcb-util-wm \
-	mesa vulkan-headers vulkan-validation-layers libdrm libgbm \
+	mesa vulkan-headers vulkan-validation-layers libdrm \
 	libevdev libusb bluez-libs ibus libunwind libdecor wayland \
 	libcups openssl curl
 
