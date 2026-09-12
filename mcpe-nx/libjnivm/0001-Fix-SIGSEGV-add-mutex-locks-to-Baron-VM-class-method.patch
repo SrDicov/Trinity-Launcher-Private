@@ -1,0 +1,82 @@
+From 5f136094636fbc51fd7c3dd80292ebd28221965a Mon Sep 17 00:00:00 2001
+From: javierc <javiercplus@example.com>
+Date: Sun, 28 Jun 2026 17:54:45 -0400
+Subject: [PATCH] Fix SIGSEGV: add mutex locks to Baron VM class method/field
+ vectors
+
+---
+ include/jnivm/hookManager.h   | 4 ++++
+ src/jnivm/internal/method.cpp | 8 +++++---
+ 2 files changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/include/jnivm/hookManager.h b/include/jnivm/hookManager.h
+index e489f96..70fb1a7 100644
+--- a/include/jnivm/hookManager.h
++++ b/include/jnivm/hookManager.h
+@@ -46,6 +46,7 @@ namespace jnivm {
+     template<class w, class W, bool isStatic> struct FunctionBase {
+         template<class T> static void install(ENV* env, Class * cl, const std::string& id, T&& t) {
+             auto ssig = InvokeSignature<isStatic, typename w::Wrapper>::Get(env);
++            std::lock_guard<std::mutex> lock(cl->mtx);
+             auto ccl =
+                     std::find_if(cl->methods.begin(), cl->methods.end(),
+                                             [&id, &ssig](std::shared_ptr<Method> &m) {
+@@ -67,6 +68,7 @@ namespace jnivm {
+         template<class T> static void install(ENV* env, Class * cl, const std::string& id, const std::string& signature, T&& t) {
+             auto ssig = signature;
+             static_assert(Function<T>::plength == 3 && std::is_same<typename Function<T>::Return, jvalue>::value  && std::is_same<typename Function<T>::template Parameter<0>,JNIEnv*>::value && std::is_same<typename Function<T>::template Parameter<2>,jvalue*>::value, "Invalid arbitary function");
++            std::lock_guard<std::mutex> lock(cl->mtx);
+             auto ccl =
+                     std::find_if(cl->methods.begin(), cl->methods.end(),
+                                             [&id, &ssig](std::shared_ptr<Method> &m) {
+@@ -99,6 +101,7 @@ namespace jnivm {
+     template<class w, class W, bool isStatic, bool isGetter, class handle_t, handle_t handle> struct PropertyBase {
+         template<class T> static void install(ENV* env, Class * cl, const std::string& id, T&& t) {
+             auto ssig = PropertySignature<isStatic, isGetter, typename w::Wrapper>::Get(env);
++            std::lock_guard<std::mutex> lock(cl->mtx);
+             auto ccl =
+                     std::find_if(cl->fields.begin(), cl->fields.end(),
+                                             [&id, &ssig](std::shared_ptr<Field> &f) {
+@@ -120,6 +123,7 @@ namespace jnivm {
+         template<class T> static void install(ENV* env, Class * cl, const std::string& id, const std::string& signature, T&& t) {
+             static_assert(Function<T>::plength == 3 && std::is_same<typename Function<T>::Return, jvalue>::value && std::is_same<typename Function<T>::template Parameter<0>,JNIEnv*>::value && std::is_same<typename Function<T>::template Parameter<2>,jvalue*>::value, "Invalid arbitary function");
+             auto ssig = signature;
++            std::lock_guard<std::mutex> lock(cl->mtx);
+             auto ccl =
+                     std::find_if(cl->fields.begin(), cl->fields.end(),
+                                             [&id, &ssig](std::shared_ptr<Field> &f) {
+diff --git a/src/jnivm/internal/method.cpp b/src/jnivm/internal/method.cpp
+index a9fe678..4681383 100644
+--- a/src/jnivm/internal/method.cpp
++++ b/src/jnivm/internal/method.cpp
+@@ -60,15 +60,16 @@ jmethodID jnivm::GetMethodID(JNIEnv *env, jclass cl, const char *str0, const cha
+             return nullptr;
+         }
+         next = std::make_shared<Method>();
++        next->name = std::move(sname);
++        next->signature = std::move(ssig);
++        next->_static = isStatic;
+         if(cur) {
++            std::lock_guard<std::mutex> lock(cur->mtx);
+             cur->methods.push_back(next);
+         } else {
+             // For Debugging purposes without valid parent class
+             JNITypes<std::shared_ptr<Method>>::ToJNIType(ENV::FromJNIEnv(env), next);
+         }
+-        next->name = std::move(sname);
+-        next->signature = std::move(ssig);
+-        next->_static = isStatic;
+ #ifdef JNI_DEBUG
+         Declare(env, next->signature.data());
+ #endif
+@@ -169,6 +170,7 @@ static Method* findNonVirtualOverload(Class*cl, Method*mid) {
+     if(!cl) {
+         return mid;
+     }
++    std::lock_guard<std::mutex> lock(cl->mtx);
+     auto res = std::find_if(cl->methods.begin(), cl->methods.end(), [mid](auto&& m) {
+         return !m->_static && mid->name == m->name && mid->signature == m->signature && m->nativehandle;
+     });
+-- 
+2.54.0
+

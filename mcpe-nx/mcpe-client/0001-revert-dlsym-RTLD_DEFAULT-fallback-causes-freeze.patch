@@ -1,0 +1,28 @@
+From 159d621ddff6273218526bb508cd6772d5e5fe08 Mon Sep 17 00:00:00 2001
+From: PlaGaPlusDev <plagaplusdev@outlook.com>
+Date: Sat, 20 Jun 2026 17:32:12 -0400
+Subject: [PATCH] revert dlsym(RTLD_DEFAULT) fallback - causes freeze
+
+---
+ src/main.cpp | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/main.cpp b/src/main.cpp
+index 89d159b..35cd788 100644
+--- a/src/main.cpp
++++ b/src/main.cpp
+@@ -619,10 +619,7 @@ Hardware	: Qualcomm Technologies, Inc MSM8998
+ 
+     FakeLooper::setJniSupport(&support);
+     support.registerMinecraftNatives(+[](const char* sym) {
+-        void* ret = linker::dlsym(handle, sym);
+-        if(!ret)
+-            ret = dlsym(RTLD_DEFAULT, sym);
+-        return ret;
++        return linker::dlsym(handle, sym);
+     });
+     std::thread startThread([&support]() {
+         ThreadMover::storeStartThreadId();
+-- 
+2.54.0
+

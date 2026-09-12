@@ -1,0 +1,19 @@
+export CC=clang
+export CXX=clang++
+mkdir -p build && cd build
+          
+cmake .. \
+	-G Ninja \
+	-DGAMEWINDOW_SYSTEM=SDL3 \
+	-DENABLE_DEV_PATHS=OFF \
+	-DJNI_USE_JNIVM=ON \
+	-DBUILD_UI=ON \
+	-DBUILD_CLIENT=ON \
+	-DBUILD_WEBVIEW=OFF \
+	-DXAL_WEBVIEW_USE_QT=ON \
+	-DUSE_OWN_CURL=OFF \
+	-DCMAKE_BUILD_TYPE=Release \
+	-DCMAKE_C_FLAGS="-DNDEBUG" \
+	-DCMAKE_CXX_FLAGS="-DNDEBUG" \
+	-DCMAKE_POLICY_VERSION_MINIMUM=3.5 
+ninja

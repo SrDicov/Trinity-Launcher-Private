@@ -1,0 +1,29 @@
+diff --git a/src/cstdio.cpp b/src/cstdio.cpp
+index d72c30a..503d049 100644
+--- a/src/cstdio.cpp
++++ b/src/cstdio.cpp
+@@ -146,6 +146,7 @@ void shim::add_cstdio_shimmed_symbols(std::vector<shim::shimmed_symbol> &list) {
+         {"__isthreaded", (void*) &bionic::io_isthreaded},
+ 
+         {"fopen", IOREWRITE1(fopen)},
++        {"fopen64", IOREWRITE1(fopen)}, // same signature for us
+         {"fdopen", fdopen},
+         {"freopen", IOREWRITE1(freopen)},
+         {"freopen64", IOREWRITE1(freopen)}, // same signature for us
+diff --git a/src/file_misc.cpp b/src/file_misc.cpp
+index 29088f7..37e55b8 100644
+--- a/src/file_misc.cpp
++++ b/src/file_misc.cpp
+@@ -244,9 +244,12 @@ void shim::add_fcntl_shimmed_symbols(std::vector<shim::shimmed_symbol> &list) {
+ #if LIBC_SHIM_DEFINE_VARIADIC
+         {"open", open},
+         {"openat", openat},
++        {"open64", open}, // same signature for us
++        {"openat64", openat}, // same signature for us
+ #else
+         // TODO This is wrong
+         {"openat", openat},
++        {"openat64", openat}, // same signature for us
+ #endif
+         {"__open_2", IOREWRITE1(open_2)},
+         // for platforms with ABI incompatible variadic

@@ -1,0 +1,33 @@
+From e24971f26fec9b874aab262509892fc1bc7f4022 Mon Sep 17 00:00:00 2001
+From: PlaGaPlusDev <plagaplusdev@outlook.com>
+Date: Tue, 16 Jun 2026 19:57:38 -0400
+Subject: [PATCH] Add pthread_sigmask to shimmed symbols
+
+pthread_sigmask was missing from add_pthread_shimmed_symbols(),
+causing dlopen to fail when libminecraftpe.so tries to resolve it.
+On glibc >= 2.34 pthread_sigmask moved from libpthread to libc,
+making the missing symbol fatal on modern Linux.
+
+Fixes: cannot locate symbol 'pthread_sigmask' error
+---
+ src/pthreads.cpp | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/pthreads.cpp b/src/pthreads.cpp
+index eaf28fe..a59d0f0 100644
+--- a/src/pthreads.cpp
++++ b/src/pthreads.cpp
+@@ -590,6 +590,9 @@ void shim::add_pthread_shimmed_symbols(std::vector<shimmed_symbol> &list) {
+         {"__pthread_cleanup_pop", pthread_cleanup_pop_impl},
+ 
+         {"pthread_once", pthread_once},
+-        {"pthread_gettid_np", pthread_gettid_np}
++        {"pthread_gettid_np", pthread_gettid_np},
++        {"pthread_sigmask", +[](int how, const void* set, void* oset) -> int {
++            return ::pthread_sigmask(how, (const sigset_t*)set, (sigset_t*)oset);
++        }},
+     });
+ }
+-- 
+2.54.0
+

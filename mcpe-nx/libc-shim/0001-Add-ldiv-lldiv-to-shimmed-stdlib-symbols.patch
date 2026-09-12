@@ -1,0 +1,31 @@
+From 3e6b8a890221c68a6c4bc1a882c4d41f21eb34f2 Mon Sep 17 00:00:00 2001
+From: PlaGaPlusDev <plagaplusdev@outlook.com>
+Date: Tue, 16 Jun 2026 22:46:58 -0400
+Subject: [PATCH] Add ldiv/lldiv to shimmed stdlib symbols
+
+ldiv and lldiv were missing from add_stdlib_shimmed_symbols(),
+causing dlopen to fail when libminecraftpe.so tries to resolve them
+on version 1.26.30+.
+
+These are standard C library functions from <stdlib.h> used by newer
+Minecraft Bedrock builds.
+---
+ src/common.cpp | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/common.cpp b/src/common.cpp
+index 2ef6d95..8c9fffa 100644
+--- a/src/common.cpp
++++ b/src/common.cpp
+@@ -587,6 +587,8 @@ void shim::add_stdlib_shimmed_symbols(std::vector<shim::shimmed_symbol> &list) {
+         {"realpath", realpath},
+         {"bsearch", bsearch},
+         {"qsort", qsort},
++        {"ldiv", ::ldiv},
++        {"lldiv", ::lldiv},
+         {"mblen", mblen},
+         {"mbtowc", mbtowc},
+         {"wctomb", wctomb},
+-- 
+2.54.0
+

@@ -1,0 +1,13 @@
+diff --git a/src/window_sdl3.cpp b/src/window_sdl3.cpp
+index 722ecb7..11b7b65 100644
+--- a/src/window_sdl3.cpp
++++ b/src/window_sdl3.cpp
+@@ -264,7 +264,7 @@ void SDL3GameWindow::pollEvents() {
+                 auto str = SDL_GetClipboardText();
+                 onPaste(str);
+             }
+-            onKeyboard(getKeyMinecraft(SDL_GetKeyFromScancode(ev.key.scancode, SDL_KMOD_NONE, false)), ev.type == SDL_EVENT_KEY_DOWN ? ev.key.repeat ? KeyAction::REPEAT : KeyAction::PRESS : KeyAction::RELEASE, translateMeta(mods));
++            onKeyboard(getKeyMinecraft(SDL_GetKeyFromScancode(ev.key.scancode, SDL_KMOD_NONE, true)), ev.type == SDL_EVENT_KEY_DOWN ? ev.key.repeat ? KeyAction::REPEAT : KeyAction::PRESS : KeyAction::RELEASE, translateMeta(mods));
+             break;
+         case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
+         case SDL_EVENT_GAMEPAD_BUTTON_UP:
