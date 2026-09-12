@@ -38,7 +38,9 @@ namespace shim {
             SETFD = 2,
             GETFL = 3,
             SETFL = 4,
-            SETLK = 6
+            GETLK = 5,
+            SETLK = 6,
+            SETLKW = 7
         };
 
         struct flock {

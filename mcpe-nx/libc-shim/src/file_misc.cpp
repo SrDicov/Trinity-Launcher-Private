@@ -175,7 +175,9 @@ int shim::fcntl(int fd, bionic::fcntl_index cmd, void *arg) {
             return (int)bionic::from_host_file_status_flags(::fcntl(fd, F_GETFL));
         case bionic::fcntl_index::SETFL:
             return ::fcntl(fd, F_SETFL, to_host_file_status_flags((bionic::file_status_flags) (size_t) arg));
-        case bionic::fcntl_index::SETLK: {
+        case bionic::fcntl_index::GETLK:
+        case bionic::fcntl_index::SETLK:
+        case bionic::fcntl_index::SETLKW: {
             auto afl = (bionic::flock *) arg;
             struct flock fl {};
             fl.l_type = afl->l_type;
@@ -183,7 +185,18 @@ int shim::fcntl(int fd, bionic::fcntl_index cmd, void *arg) {
             fl.l_start = afl->l_start;
             fl.l_len = afl->l_len;
             fl.l_pid = afl->l_pid;
-            return ::fcntl(fd, F_SETLK, &fl);
+            int host_cmd = (cmd == bionic::fcntl_index::GETLK) ? F_GETLK
+                         : (cmd == bionic::fcntl_index::SETLKW) ? F_SETLKW : F_SETLK;
+            int ret = ::fcntl(fd, host_cmd, &fl);
+            if (ret != -1 && cmd == bionic::fcntl_index::GETLK) {
+                // GETLK devuelve el bloqueo conflictivo en la misma estructura
+                afl->l_type = fl.l_type;
+                afl->l_whence = fl.l_whence;
+                afl->l_start = fl.l_start;
+                afl->l_len = fl.l_len;
+                afl->l_pid = fl.l_pid;
+            }
+            return ret;
         }
         default:
             handle_runtime_error("Unsupported fcntl %d", (int)cmd);
