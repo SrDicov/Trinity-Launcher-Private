@@ -86,6 +86,7 @@ cmake -S mcpe-nx -B mcpe-nx/build -G Ninja \
 	-DGAMEWINDOW_SYSTEM=SDL3 \
 	-DBUILD_UI=OFF \
 	-DENABLE_DEV_PATHS=OFF \
+	-DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
 	-Wno-dev
 cmake --build mcpe-nx/build --parallel "$(nproc)"
 
